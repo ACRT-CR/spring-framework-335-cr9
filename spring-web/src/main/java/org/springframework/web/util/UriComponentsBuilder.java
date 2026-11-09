@@ -62,9 +62,13 @@ public class UriComponentsBuilder {
 
 	private static final String HTTP_PATTERN = "(?i)(http|https):";
 
-	private static final String USERINFO_PATTERN = "([^@/]*)";
+	private static final String USERINFO_PATTERN = "([^/?#]*)";
 
-	private static final String HOST_PATTERN = "([^/?#:]*)";
+	private static final String HOST_IPv4_PATTERN = "[^/?#:]*";
+
+	private static final String HOST_IPV6_PATTERN = "\\[[\\p{XDigit}\\:\\.]*[%\\p{Alnum}]*\\]";
+
+	private static final String HOST_PATTERN = "("+HOST_IPV6_PATTERN + "|" + HOST_IPv4_PATTERN + ")";
 
 	private static final String PORT_PATTERN = "(\\d*)";
 
@@ -185,6 +189,7 @@ public class UriComponentsBuilder {
 				builder.schemeSpecificPart(ssp);
 			}
 			else {
+				checkSchemeAndHost(uri, scheme, host);
 				builder.userInfo(userInfo);
 				builder.host(host);
 				if (StringUtils.hasLength(port)) {
@@ -226,7 +231,9 @@ public class UriComponentsBuilder {
 			String scheme = m.group(1);
 			builder.scheme((scheme != null) ? scheme.toLowerCase() : scheme);
 			builder.userInfo(m.group(4));
-			builder.host(m.group(5));
+			String host = m.group(5);
+			checkSchemeAndHost(httpUrl, scheme.toLowerCase(), host);
+			builder.host(host);
 			String port = m.group(7);
 			if (StringUtils.hasLength(port)) {
 				builder.port(Integer.parseInt(port));
@@ -238,6 +245,15 @@ public class UriComponentsBuilder {
 		}
 		else {
 			throw new IllegalArgumentException("[" + httpUrl + "] is not a valid HTTP URL");
+		}
+	}
+
+	private static void checkSchemeAndHost(String uri, String scheme, String host) {
+		if (StringUtils.hasLength(scheme) && scheme.startsWith("http") && !StringUtils.hasLength(host)) {
+			throw new IllegalArgumentException("[" + uri + "] is not a valid HTTP URL");
+		}
+		if (StringUtils.hasLength(host) && host.startsWith("[") && !host.endsWith("]")) {
+			throw new IllegalArgumentException("Invalid IPV6 host in [" + uri + "]");
 		}
 	}
 
